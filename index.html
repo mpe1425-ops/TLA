@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Тест личностных акцентуаций (ЛА) — обработка</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#0a1730;--p:#102345;--p2:#16305c;--l:#27457d;--o:#ff8a1f;--o2:#ffb066;--t:#e8eefb;--m:#9fb2d6;--r:#ff5d5d;--g:#4fd18b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif}
+header{padding:22px 20px;border-bottom:3px solid var(--o);background:linear-gradient(90deg,#0c1d3d,#13305f)}
+h1{margin:0;font-size:22px}h1 span{color:var(--o)}header p{margin:4px 0 0;color:var(--m);font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:18px}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+nav button,.btn{background:var(--p2);color:var(--t);border:1px solid var(--l);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on,.btn.pr{background:var(--o);color:#1a1000;border-color:var(--o);font-weight:600}
+.btn:hover,nav button:hover{filter:brightness(1.12)}
+.card{background:var(--p);border:1px solid var(--l);border-radius:12px;padding:16px;margin-bottom:14px}
+h2{margin:0 0 10px;font-size:17px;color:var(--o2)}h3{margin:14px 0 6px;font-size:15px;color:var(--o2)}
+textarea,input,select{background:#0b1b38;color:var(--t);border:1px solid var(--l);border-radius:8px;padding:8px;font:inherit}
+textarea{width:100%;min-height:130px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.hint{color:var(--m);font-size:13px}.hide{display:none}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}
+#grid label{display:flex;align-items:center;gap:4px;background:#0b1b38;border:1px solid var(--l);border-radius:6px;padding:2px 6px;font-size:12px;color:var(--m)}
+#grid input{width:100%;padding:3px;text-align:center;border:0;background:transparent}
+#grid label:focus-within{border-color:var(--o)}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px solid var(--l);padding:5px 8px;text-align:left}
+th{color:var(--o2);font-weight:600}td.n{text-align:center}tr.hl td{background:#1b3a6e}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--p2);border:1px solid var(--l);font-size:12px;margin:1px}
+.warn{color:var(--o2)}.bad{color:var(--r)}.ok{color:var(--g)}
+.big{font-size:20px;font-weight:700;color:var(--o)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:800px){.two{grid-template-columns:1fr}}
+pre{white-space:pre-wrap;background:#0b1b38;padding:10px;border-radius:8px;border:1px solid var(--l)}
+@media print{body{background:#fff;color:#000}header,nav,.noprint{display:none}.card{border-color:#999;background:#fff}th,h2,h3{color:#000}}
+</style></head><body>
+<header><h1>Тест личностных акцентуаций <span>(ЛА)</span> — автоматическая обработка</h1>
+<p>По методике В.П. Дворщенко (модификация ПДО А.Е. Личко), 2002. Данные обрабатываются в браузере и никуда не отправляются.</p></header>
+<main>
+<nav id="tabs"></nav>
+
+<section id="p-in">
+ <div class="card"><h2>Параметры обследуемого</h2>
+  <div class="row"><label>Пол: <select id="sex"><option value="m">мужской</option><option value="f">женский</option></select></label>
+  <label>Возраст: <input id="age" type="number" min="10" max="60" style="width:80px"></label>
+  <span class="hint">Пол нужен для правила «М &lt; Ф» (применяется только к юношам). Для пакетной обработки параметры общие.</span></div></div>
+
+ <div class="card"><h2>1. Загрузить файл (CSV / XLSX)</h2>
+  <input type="file" id="file" accept=".csv,.xlsx,.xls,.txt">
+  <p class="hint">Допустимы: строка из 195 значений; столбец из 195 значений; два столбца «№ — ответ»; несколько строк (по одному обследуемому в строке, первая ячейка может быть ФИО). Значения от −3 до +3.</p></div>
+
+ <div class="card"><h2>2. Вставить из Excel / текста</h2>
+  <textarea id="paste" placeholder="Вставьте 195 значений (через пробел, табуляцию, запятую или с новой строки). Несколько обследуемых — по строке на каждого: ФИО и 195 значений."></textarea>
+  <div class="row"><button class="btn pr" id="goPaste">Обработать</button></div></div>
+
+ <div class="card"><h2>3. Заполнить бланк</h2>
+  <p class="hint">Введите ответ для каждого утверждения: от −3 до 3. Enter / пробел / Tab — к следующей ячейке. Пустые ячейки считаются как 0.</p>
+  <div id="grid"></div>
+  <div class="row"><button class="btn pr" id="goForm">Рассчитать</button><button class="btn" id="clr">Очистить</button></div></div>
+ <div id="err" class="bad"></div>
+</section>
+
+<section id="p-out" class="hide"><div class="row noprint"><select id="who"></select>
+ <button class="btn" onclick="window.print()">Печать / PDF</button><button class="btn" id="csv">Скачать CSV (все)</button></div><div id="res"></div></section>
+
+<section id="p-key" class="hide"><div class="card"><h2>Ключи шкал</h2>
+ <p class="hint">Формат: «ДА» и «НЕТ» — номера пунктов через пробел; вес, если он не 1, указывается через двоеточие (<code>85:2</code>, <code>96:-3</code>). Ответ +3 засчитывается по ключу «ДА», −3 — по ключу «НЕТ». Изменения действуют до перезагрузки страницы (можно сохранить в JSON).</p>
+ <div id="keynote" class="warn"></div>
+ <table id="keytab"></table>
+ <div class="row"><button class="btn" id="kdl">Сохранить ключи (JSON)</button><label class="btn">Загрузить JSON<input type="file" id="kup" accept=".json" class="hide"></label><button class="btn" id="krs">Сбросить</button></div></div></section>
+
+<section id="p-abt" class="hide"><div class="card"><h2>Как это работает</h2><div id="about"></div></div></section>
+</main>
+<script>
+const SC=['Д','Т','Г','Ц','Л','А','С','П','Ш','Э','И','Н','d','В','К','Е','М','Ф','V'];
+const TY=['Г','Ц','Л','А','С','П','Ш','Э','И','Н'];
+const NM={Г:'гипертимный',Ц:'циклоидный',Л:'лабильный',А:'астено-невротический',С:'сензитивный',П:'психастенический',Ш:'шизоидный',Э:'эпилептоидный',И:'истероидный',Н:'неустойчивый'};
+const SN={Д:'Диссимуляция',Т:'Откровенность',Г:'Гипертимный',Ц:'Циклоидный',Л:'Лабильный',А:'Астено-невротический',С:'Сензитивный',П:'Психастенический',Ш:'Шизоидный',Э:'Эпилептоидный',И:'Истероидный',Н:'Неустойчивый',d:'Склонность к делинквентности',В:'Органический генез',К:'Конформность',Е:'Реакция эмансипации',М:'Мужественность',Ф:'Женственность',V:'Склонность к алкоголизации'};
+const KEYS0={
+Д:{y:'7 9 73 175 194',n:'27 82 122'},
+Т:{y:'2 18 30 50:3 55:2 111 180',n:''},
+Г:{y:'31 43 85:2 98 121 138 140 141 145 146 149 163 164 168 189:2',n:'50 54 86 110 129 136 191'},
+Ц:{y:'27 40 43 69 78 79 84 88 89 98 117 129 131 133 135 139 173 188',n:'6 25 42 57 80 96 186 194'},
+Л:{y:'13 17 19 49:2 51 60 62 101 126 137 139 159 185',n:'23 37 39 50 64 81 92 96 103 104 115 136 171'},
+А:{y:'1 20 24 56 71:2 72 79 80 89 104 120 126 137 157 159 193',n:'95 156 182'},
+С:{y:'3 5 17 18 32 67:2 76 96 107 113:2 120 132:2 165 185',n:'81 85 90 98 121 138:2 163 168 172 189'},
+П:{y:'3 4:2 6 22:2 29 34 49 52 69 102 110 114 128',n:'59 136 162:2 168 187:2 192:2'},
+Ш:{y:'3 5:2 29:2 44 48 63 105 123:2 142 184 192',n:'36:2 148:2 168:3'},
+Э:{y:'29 37:2 38:2 60 64 68:2 74 83 109 130 140 156 168 191:2',n:'27 45:2 80 106 109:2 118 136 153 160:2 161:2 183 192'},
+И:{y:'8 19 46:2 63 140 151:2 156 190',n:'15 27 53 70:2 77 99 100 106 119 122 124 143:2 144 154 159 166 179'},
+Н:{y:'9:2 36 41:2 61 73:2 140:2 141 149 168 195',n:'11:2 109 115'},
+d:{y:'10 16 21 28 54 56 61 68 74 75 90 93 94 135',n:'17 43 117 131 148:2 155:3 164'},
+В:{y:'14 90 97 192',n:'56 106 130 174 182'},
+К:{y:'12 87 169',n:'33 66 116 123 151 174'},
+Е:{y:'7 23 35 46 61 66 85 92 100 105 108 116 123 136 147 162 170 178 186',n:''},
+М:{y:'26 69 76 86 97 112 149:2 150 152 164 167 176 181 190',n:'32 58 73 80 103 125'},
+Ф:{y:'35:2 46:2 47 62 89 134 147:2 177 178:3',n:'65 183'},
+V:{y:'3:-3 26 57:2 65 96:-3 127:-1 158:-1 189:2',n:'3 96:2 127 158:2 189:-1'}};
+const UNSURE={Д:'Электронный файл смещён на строку; взят вариант по печатному приложению 4 (НЕТ: 27, 82, 122; ДА: 7, 9, 73, 175, 194).',Л:'В электронном файле лишний пункт 43 (ДА); в печатной таблице его нет — исключён.',П:'Пункт 3 (ДА) добавлен по печатной таблице (в электронном файле отметка отсутствует).',Т:'Пункты 111 и 180 (ДА): чтение печатной таблицы неоднозначно, взято из электронного файла.',V:'Знаки и веса пунктов (±) прочитаны по бланку; рекомендуется сверка.'};
+let KEYS=JSON.parse(JSON.stringify(KEYS0)),PK={};
+const compile=()=>{PK={};for(const s of SC){PK[s]={};for(const d of['y','n']){PK[s][d]={};(KEYS[s][d]||'').trim().split(/\s+/).filter(Boolean).forEach(t=>{const[a,b]=t.split(':');PK[s][d][+a]=b===undefined?1:+b})}}};compile();
+const COMP=new Set('ГЦ ГН ГИ ЛЦ ЛА ЛС ЛИ ЛН АС АП АИ СП СШ ПШ ШЭ ШИ ШН ЭИ ЭН ИН'.split(' ').flatMap(p=>[p,p[1]+p[0]]));
+const DOM={};'ГЛ=Г ГА=А ГС=Г ГП=П ГШ=Ш ГЭ=Э ЛП=П ЛШ=Ш ЛЭ=Э АШ=Ш АЭ=Э АН=Н ЦА=А ЦС=С ЦП=П ЦШ=Ш ЦЭ=Э ЦИ=И ЦН=Н СЭ=Э СИ=И СН=Н ПЭ=Э ПИ=И ПН=Н'.split(' ').forEach(p=>{const[a,b]=p.split('=');DOM[a]=b;DOM[a[1]+a[0]]=b});
+const DX={Г:'СПШ',Ц:'Ш',С:'ЭИН',П:'Н',Ш:'ГЦ',Э:'С',И:'С',Н:'П'};
+const B=(x)=>x?1:0;
+function calc(ans,male){
+ const k={},vp=[0,0];
+ for(const s of SC){let v=0;for(let i=1;i<=195;i++){const a=ans[i];if(a===3&&PK[s].y[i]!==undefined){v+=PK[s].y[i];if(s=='V'&&PK[s].y[i]>0)vp[0]+=PK[s].y[i];if(s=='V'&&PK[s].y[i]<0)vp[1]+=PK[s].y[i]}
+  if(a===-3&&PK[s].n[i]!==undefined){v+=PK[s].n[i];if(s=='V'&&PK[s].n[i]>0)vp[0]+=PK[s].n[i];if(s=='V'&&PK[s].n[i]<0)vp[1]+=PK[s].n[i]}}k[s]=v}
+ const ad={};SC.forEach(s=>ad[s]=0);const A=(s,n=1)=>ad[s]+=n;
+ if(k.Г<=1){A('П');A('С')}if(k.Г>=6)A('Г',-1);if(k.Ц>=6)A('Л');if(k.А>=4){A('А');A('Л')}
+ if(k.П<=1)A('Н');if(k.Н<=1)A('П');if(k.К==0){A('Ш',2);A('И')}if(k.К==1)A('Ш');if(k.Д>=6)A('Н');
+ if(k.Т>k.Д){A('П',2);A('Ц')}if(k.В==5)A('Э');if(k.В>=6)A('Э',2);if(k.Е>=6){A('Ш');A('И')}if(k.d>=5)A('Ш');
+ if(male&&k.М<k.Ф){A('С');A('Ш');A('И')}if(k.V>=6)A('И');if(k.V<=-6)A('С');
+ const g={};SC.forEach(s=>g[s]=k[s]+ad[s]);
+ const R={k,ad,g,vp};
+ // отношение
+ R.diss=g.Д-g.Т>=4;R.open=g.Т>g.Д;
+ // типы
+ let ex=TY.filter(t=>g[t]>=6);
+ if(R.diss)ex=ex.filter(t=>t!='Ц'&&t!='П');
+ if(g.Е>=4)ex=ex.filter(t=>t!='С'&&t!='П');
+ if(ex.length>1){const mx=Math.max(...ex.map(t=>g[t]));ex=ex.filter(t=>mx-g[t]<4)}
+ const notes=[];
+ let ch=true;while(ch){ch=false;for(const a of ex)for(const b of ex)if(a<b&&DOM[a+b]){const w=DOM[a+b],l=w==a?b:a;ex=ex.filter(x=>x!=l);notes.push(a+'+'+b+' → '+w);ch=true;break}if(ch)break}
+ if(ex.length>3){const cc=t=>ex.filter(o=>o!=t&&COMP.has(t+o)).length;ex.sort((a,b)=>g[b]-g[a]||cc(b)-cc(a));ex=ex.slice(0,3)}
+ ex.sort((a,b)=>g[b]-g[a]);R.ex=ex;R.dom=notes;
+ // вторичные
+ R.D=B(g.Г<=2)+B(g.С>=7)+B(g.Н<=2)+B(g.Т>g.Д)+B(male&&g.М<g.Ф)-B(g.Г>=7)-B(g.И>=7)-B(g.Н>=7)-B(R.diss);
+ R.Damb=(B(g.Г<=2)+B(g.С>=7)+B(g.Н<=2)+B(g.Т>g.Д)+B(male&&g.М<g.Ф)>0)&&(B(g.Г>=7)+B(g.И>=7)+B(g.Н>=7)+B(R.diss)>0);
+ R.dx=ex.some(t=>(DX[t]||'').split('').some(s=>g[s]>=6))||(g.Е>=5&&(g.С>=6||g.П>=6))&&ex.length>0;
+ R.Nc=2*B(g.С<=2)+B(g.Э>=7)+2*B(g.Н>=7)+B(g.V>=4);
+ R.S=B(g.С>=6)+B(g.Н>=2)+B(g.Т>g.Д)+B(R.D>=2)+B(R.dx)-B(g.Г>=7)-B(g.С<=3)-B(g.И>=7)-B(g.Н>=6)-B(R.D<=-2);
+ const cd={Г:[['Г≥11',g.Г>=11],['Э≥7',g.Э>=7],['Н≥8',g.Н>=8],['Д≥5',g.Д>=5],['Е≥5',g.Е>=5],['Г+Н≥19',g.Г+g.Н>=19]],
+  Л:[['Л≥12',g.Л>=12],['Ш≥7',g.Ш>=7],['Н≥7',g.Н>=7],['Е≥4',g.Е>=4],['d≥4',g.d>=4]],
+  С:[['С≥11',g.С>=11],['Э≥6',g.Э>=6],['d≥3',g.d>=3],['D амбивалентна',R.Damb]],
+  Ш:[['Л≥6',g.Л>=6],['Ш≥12',g.Ш>=12],['d≥5',g.d>=5]],
+  Э:[['Ш≥7',g.Ш>=7],['И≥8',g.И>=8],['Н≥8',g.Н>=8],['Е≥5',g.Е>=5],['d≥5',g.d>=5]],
+  И:[['А≥5',g.А>=5],['П≥8',g.П>=8],['И≥13',g.И>=13],['Н≥7',g.Н>=7],['d≥6',g.d>=6]],
+  Н:[['Ц≥6',g.Ц>=6],['И≥10',g.И>=10],['В≥5',g.В>=5],['А+С+П≥8',g.А+g.С+g.П>=8]]};
+ const vl={Г:[['Н≥10',g.Н>=10],['К=0',g.К==0],['Е≥6',g.Е>=6]],Л:[['А≥6',g.А>=6],['Ш≥7',g.Ш>=7],['К=0',g.К==0],['Д≥6',g.Д>=6]],
+  С:[['С≥12',g.С>=12]],Ш:[['Г=1',g.Г==1],['Л=1',g.Л==1],['Ш≥13',g.Ш>=13],['d≥7',g.d>=7],['V≥4',g.V>=4]],
+  Э:[['Г=0',g.Г==0],['Ц≥8',g.Ц>=8],['Э≥10',g.Э>=10],['К<1',g.К<1],['d≥6',g.d>=6]],И:[['А≥5',g.А>=5],['Е≥6',g.Е>=6]],
+  Н:[['Н≥12',g.Н>=12],['К<1',g.К<1],['В≥5',g.В>=5],['V≤−6',g.V<=-6]]};
+ const pick=m=>{const o=new Set();ex.forEach(t=>(m[t]||[]).forEach(([l,v])=>v&&o.add(l)));return[...o]};
+ R.Cd=pick(cd);R.Vl=pick(vl);
+ return R}
+const lvl=(v,a)=>{for(const[c,t]of a)if(v<=c)return t;return a[a.length-1][1]};
+function report(R,male){const g=R.g,o=[];
+ o.push(['Отношение к обследованию',R.diss?'возможна диссимуляция (Д−Т≥4): результат сомнителен, типы Ц и П исключены; рекомендуется повторное тестирование':R.open?'повышенная откровенность (Т>Д), характерна для типов П и Ц':'без особенностей']);
+ o.push(['Дискордантность характера (Дх)',R.ex.length?(R.dx?'есть':'нет'):'—']);
+ o.push(['Органический генез (В)',g.В>=5?'вероятность ≈50%':g.В>0?'не исключён, вероятность ниже':'признаков нет']);
+ o.push(['Конформность (К)',g.К<=1?'низкая (нонконформизм)':g.К<=3?'умеренная':g.К<=5?'средняя':'высокая']);
+ o.push(['Реакция эмансипации (Е)',g.Е<=1?'слабая':g.Е<=3?'умеренная':g.Е<=5?'выраженная':'очень сильная']);
+ o.push(['Мужественность / женственность','М='+g.М+', Ф='+g.Ф+': '+(g.М>g.Ф?'преобладает мужественность':g.М<g.Ф?'преобладает женственность':'поровну')]);
+ o.push(['Склонность к алкоголизации (V)','V='+g.V+' (+'+R.vp[0]+' / '+R.vp[1]+'): '+(g.V<0?'отсутствует':g.V<2?'неопределённо':g.V>=6?'есть, демонстративная':'есть')]);
+ o.push(['Склонность к делинквентности (d)',g.d<=3?'отсутствует':'возможна']);
+ o.push(['Склонность к депрессии (D)','D='+R.D+': '+(R.D>=2?'есть':R.D<=-1?'отсутствует':'неопределённо')+(R.Damb?' (амбивалентна)':'')]);
+ o.push(['Риск наркотизации (Nc)','Nc='+R.Nc+': '+(R.Nc<=1?'отсутствует':R.Nc==2?'умеренный':R.Nc==3?'выраженный':'очень высокий')]);
+ o.push(['Суицидальная попытка (S)','S='+R.S+': '+(R.S<=-1?'прогноз — демонстративная':R.S==0?'неопределённо':'прогноз — истинная')]);
+ o.push(['Риск социальной дезадаптации (Сд)',R.ex.some(t=>'ГЛСШЭИН'.includes(t))?(R.Cd.length?(R.Cd.length>1?'высокий':'есть')+' ('+R.Cd.join(', ')+')':'нет'):'не определяется для данного типа']);
+ o.push(['Расстройство личности (Врл)',R.Vl.length?'есть довод(ы): '+R.Vl.join(', '):'доводов нет']);
+ return o}
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function draw(p){const R=p.R,g=R.g;
+ const ty=R.ex.length==0?'акцентуация не выражена (ни один тип не набрал 6 баллов или исключён правилами)':R.ex.length==1?'<b>'+NM[R.ex[0]]+' тип</b> (чистый)':'<b>смешанный тип: '+R.ex.map(t=>NM[t]).join(' + ')+'</b> ('+R.ex.join('')+')';
+ let h='<div class="card"><h2>'+esc(p.name)+(p.sex?'':'')+'</h2><div class="big">'+ty+'</div>';
+ if(R.dom.length)h+='<p class="hint">Правило доминирования: '+R.dom.join('; ')+'</p>';
+ const un=p.ans.filter(x=>x===undefined).length;if(un)h+='<p class="warn">Пропущено ответов: '+un+' (считаются как 0).</p>';
+ h+='</div><div class="two"><div class="card"><h2>Баллы по шкалам</h2><table><tr><th>Шкала</th><th>Ключей</th><th>Доп.</th><th>Сумма</th></tr>';
+ for(const s of SC){const ex=R.ex.includes(s);h+='<tr class="'+(ex?'hl':'')+'"><td>'+s+' — '+SN[s]+'</td><td class="n">'+(s=='V'?R.vp[0]+'/'+R.vp[1]+'='+R.k.V:R.k[s])+'</td><td class="n">'+(R.ad[s]||'')+'</td><td class="n"><b>'+g[s]+'</b></td></tr>'}
+ h+='</table></div><div class="card"><h2>Интерпретация</h2><table>';
+ for(const[a,b]of report(R,p.male))h+='<tr><td>'+a+'</td><td>'+esc(b)+'</td></tr>';
+ return h+'</table></div></div>'}
+let PEOPLE=[];
+function show(list){PEOPLE=list;const w=document.getElementById('who');w.innerHTML=list.map((p,i)=>'<option value="'+i+'">'+esc(p.name)+'</option>').join('');w.style.display=list.length>1?'':'none';tab('out');w.onchange=()=>rend(+w.value);rend(0)}
+const rend=i=>document.getElementById('res').innerHTML=draw(PEOPLE[i]);
+function mk(name,vals){const ans=[];for(let i=1;i<=195;i++){const v=vals[i-1];ans[i]=v}
+ const male=document.getElementById('sex').value=='m';const a2=[];for(let i=1;i<=195;i++)a2[i]=ans[i]===undefined?0:ans[i];
+ const p={name,male,ans:ans.slice(1),R:calc(a2,male)};return p}
+const num=t=>{t=String(t).trim().replace(/[−–—]/g,'-').replace(/^\+/,'');return /^-?\d+$/.test(t)?+t:NaN};
+function fromRows(rows){const out=[];
+ rows=rows.map(r=>(Array.isArray(r)?r:[r]).map(c=>c===undefined||c===null?'':c)).filter(r=>r.some(c=>String(c).trim()!==''));
+ if(rows.length>=195&&rows.slice(0,195).every(r=>r.length>=1)){ // столбцы
+  const c2=rows.slice(0,195).every((r,i)=>r.length>=2&&num(r[0])===i+1);
+  const col=rows.length&&rows.slice(0,195).map(r=>num(c2?r[1]:r[r.length-1]));
+  if(c2||rows.every(r=>r.filter(x=>String(x).trim()!=='').length==1||rows.length==195&&r.length==1)){return[mk('Обследуемый',col)]}}
+ rows.forEach((r,i)=>{let nm='',v=r.slice();const nums=v.map(num);let st=0;while(st<v.length&&isNaN(nums[st])&&String(v[st]).trim()!=='')st++;
+  nm=v.slice(0,st).join(' ').trim();let vals=nums.slice(st).filter((x,j)=>!(isNaN(x)&&String(v[st+j]).trim()===''));
+  if(vals.length==196&&vals[0]>=1&&vals[0]<=1000&&0)vals=vals.slice(1);
+  if(vals.length>195&&vals.length%195==0){for(let q=0;q<vals.length/195;q++)out.push(mk((nm||'Обследуемый '+(out.length+1)),vals.slice(q*195,q*195+195)))}
+  else if(vals.length>=195)out.push(mk(nm||'Обследуемый '+(out.length+1),vals.slice(vals.length-195)));
+  else if(vals.length)throw new Error('Строка '+(i+1)+': найдено '+vals.length+' значений вместо 195.')});
+ if(!out.length)throw new Error('Не найдено 195 значений.');return out}
+function check(list){for(const p of list)p.ans.forEach((v,i)=>{if(v!==undefined&&(isNaN(v)||v<-3||v>3))throw new Error(p.name+': пункт '+(i+1)+' — недопустимое значение «'+v+'» (нужно от −3 до +3)')});return list}
+const go=f=>{const e=document.getElementById('err');e.textContent='';try{show(check(f()))}catch(x){e.textContent=x.message}};
+document.getElementById('goPaste').onclick=()=>go(()=>fromRows(document.getElementById('paste').value.split(/\r?\n/).map(l=>l.split(/\t|;|,|\s+/).filter(x=>x!==''))));
+document.getElementById('file').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>go(()=>{const wb=XLSX.read(rd.result,{type:'array'});return fromRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''}))});rd.readAsArrayBuffer(f);ev.target.value=''};
+const grid=document.getElementById('grid');
+for(let i=1;i<=195;i++){const l=document.createElement('label');l.innerHTML=i+'<input inputmode="numeric" data-i="'+i+'" maxlength="3">';grid.appendChild(l)}
+grid.addEventListener('keydown',e=>{if(e.target.tagName!='INPUT')return;if(['Enter',' '].includes(e.key)){e.preventDefault();const n=grid.querySelector('[data-i="'+(+e.target.dataset.i+1)+'"]');n&&n.focus()}
+ if(e.key=='Backspace'&&!e.target.value){const n=grid.querySelector('[data-i="'+(+e.target.dataset.i-1)+'"]');n&&n.focus()}});
+grid.addEventListener('input',e=>{const v=e.target.value.replace(/[−–—]/g,'-');e.target.value=v.replace(/[^0-3+-]/g,'');if(/^[+-]?[0-3]$/.test(e.target.value)&&e.target.value!='-'){const n=grid.querySelector('[data-i="'+(+e.target.dataset.i+1)+'"]');n&&n.focus()}});
+document.getElementById('goForm').onclick=()=>go(()=>[mk('Обследуемый',[...grid.querySelectorAll('input')].map(x=>x.value===''?undefined:num(x.value)))]);
+document.getElementById('clr').onclick=()=>grid.querySelectorAll('input').forEach(x=>x.value='');
+document.getElementById('csv').onclick=()=>{const hd=['Имя',...SC.map(s=>s+'_сумма'),'Тип','D','Nc','S','Дх','Сд','Врл'];const rows=PEOPLE.map(p=>[p.name,...SC.map(s=>p.R.g[s]),p.R.ex.length?p.R.ex.join(''):'не выражена',p.R.D,p.R.Nc,p.R.S,p.R.dx?1:0,p.R.Cd.join('|'),p.R.Vl.join('|')]);
+ const t='\ufeff'+[hd,...rows].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download='tla_results.csv';a.click()};
+// ключи
+function keyUI(){const t=document.getElementById('keytab');t.innerHTML='<tr><th>Шкала</th><th>ДА (+3)</th><th>НЕТ (−3)</th></tr>'+SC.map(s=>'<tr><td title="'+SN[s]+'"><b>'+s+'</b>'+(UNSURE[s]?' <span class="warn" title="'+esc(UNSURE[s])+'">⚠</span>':'')+'</td><td><input data-s="'+s+'" data-d="y" value="'+KEYS[s].y+'" style="width:100%"></td><td><input data-s="'+s+'" data-d="n" value="'+KEYS[s].n+'" style="width:100%"></td></tr>').join('');
+ document.getElementById('keynote').innerHTML=Object.entries(UNSURE).map(([s,m])=>'⚠ <b>'+s+'</b>: '+esc(m)).join('<br>');
+ t.oninput=e=>{KEYS[e.target.dataset.s][e.target.dataset.d]=e.target.value;compile()}}
+document.getElementById('krs').onclick=()=>{KEYS=JSON.parse(JSON.stringify(KEYS0));compile();keyUI()};
+document.getElementById('kdl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(KEYS,null,1)],{type:'application/json'}));a.download='tla_keys.json';a.click()};
+document.getElementById('kup').onchange=ev=>{const rd=new FileReader();rd.onload=()=>{try{const k=JSON.parse(rd.result);for(const s of SC)if(!k[s])throw 0;KEYS=k;compile();keyUI()}catch(e){alert('Неверный формат JSON')}};rd.readAsText(ev.target.files[0])};
+document.getElementById('about').innerHTML='<p>Для каждого утверждения (1–195) учитываются только ответы <b>+3</b> и <b>−3</b>. Ответ совпавший с ключом даёт 1 балл (или вес пункта). Затем по таблице 1 начисляются дополнительные баллы, после чего определяются: выраженность типов (≥6 баллов, исключения по Д−Т и Е), доминирование и смешанные типы, дискордантность, склонности (D, d, V), риск наркотизации, истинность суицидальной попытки, риск дезадаптации и доводы в пользу расстройства личности.</p><p class="warn">Результат — вспомогательный. Диагноз ставит квалифицированный специалист (по автору методики — при участии опытного клинициста).</p><h3>Допущения при реализации</h3><ul><li>Где текст книги и «шпаргалка» расходятся, взята шпаргалка: Д−Т≥4, Г≥6 (−1 балл), А+С+П для типа Н — по тексту (≥8).</li><li>Правило «превышают остальные на 4 балла»: из нескольких выраженных типов остаются те, что отстают от лидера менее чем на 4 балла.</li><li>Дискордантность: достаточно, чтобы хотя бы один несовместимый тип набрал ≥6; при Е≥5 — С или П ≥6.</li><li>Ключи прочитаны со сканов; спорные места отмечены ⚠ во вкладке «Ключи».</li></ul>';
+// вкладки
+const TB=[['in','Ввод данных'],['out','Результаты'],['key','Ключи'],['abt','О методике']];
+const tabs=document.getElementById('tabs');TB.forEach(([id,t])=>{const b=document.createElement('button');b.textContent=t;b.dataset.t=id;b.onclick=()=>tab(id);tabs.appendChild(b)});
+function tab(id){TB.forEach(([i])=>document.getElementById('p-'+i).classList.toggle('hide',i!=id));[...tabs.children].forEach(b=>b.classList.toggle('on',b.dataset.t==id))}
+keyUI();tab('in');
+</script></body></html>
